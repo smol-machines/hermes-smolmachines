@@ -1,0 +1,19 @@
+name: smolmachines
+version: "0.1.0"
+manifest_version: 2
+description: Run Hermes terminal, file and code tools in a smol machine, a microVM on this computer with its own Linux kernel.
+author: smol machines
+kind: backend
+license: MIT
+homepage: https://github.com/smol-machines/hermes-smolmachines
+requires_hermes: ">=0.21.6"
+python_dependencies:
+  - "smolmachines>=1.27.2,<2"
+provides_tools: []
+provides_hooks: []
+config_schema:
+  image:
+    type: str
+    default: python:3.12-slim
+    label: Image
+    description: "OCI image each machine boots from. Hermes runs its tools with bash and python3, so the image needs both."
