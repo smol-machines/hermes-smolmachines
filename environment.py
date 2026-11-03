@@ -69,7 +69,7 @@ class _StreamProcess:
 
 
 class SmolMachineEnvironment(BaseEnvironment):
-    """Persistent: one detached machine per Hermes home and task, left running at cleanup. Otherwise: deleted."""
+    """Persistent: one detached machine per Hermes home and task, left running at cleanup unless forced. Otherwise: deleted."""
 
     def __init__(
         self, *, cwd: str, timeout: int, task_id: str, image: str, cpus: int, memory_mb: int, persistent: bool
@@ -125,7 +125,8 @@ class SmolMachineEnvironment(BaseEnvironment):
             raise too_big
         Path(local_dest).write_bytes(data)
 
-    def cleanup(self) -> None:
+    def cleanup(self, *, force_remove: bool = False) -> None:
         machine, self._machine = self._machine, None
-        if machine is not None and not self._persistent:
-            machine.delete()  # a persistent machine keeps running for the next session, as Hermes's contract asks
+        # A persistent machine keeps running for the next session, as Hermes's contract asks; Hermes forces one it used once.
+        if machine is not None and (force_remove or not self._persistent):
+            machine.delete()

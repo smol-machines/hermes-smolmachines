@@ -7,7 +7,8 @@ import uuid
 from pathlib import Path
 
 import pytest
-from smol import ConnectOptions, Machine, SmolError, local_availability
+from smol import ConnectOptions, Machine, local_availability
+from tools.terminal_tool_lifecycle import _cleanup_env
 
 AVAILABLE, _, REASON = local_availability()
 pytestmark = pytest.mark.skipif(not AVAILABLE, reason=f"this host cannot run smol machines: {REASON}")
@@ -39,14 +40,8 @@ def open_env(provider, task_id, persistent):
                                        container_config={"container_persistent": persistent})
 
 
-def exists(name):
-    try:
-        Machine.connect(name, LOCAL)
-    except SmolError as exc:
-        if exc.code == "NOT_FOUND":
-            return False
-        raise
-    return True
+def machine_state(name):
+    return next((machine.state for machine in Machine.list(LOCAL) if machine.name == name), None)
 
 
 def test_commands_run_in_a_local_machine_that_cleanup_deletes(provider, monkeypatch, tmp_path):
@@ -77,7 +72,7 @@ def test_commands_run_in_a_local_machine_that_cleanup_deletes(provider, monkeypa
         assert env.execute("echo alive")["output"].strip() == "alive"
     finally:
         env.cleanup()
-    assert not exists(name)
+    assert machine_state(name) is None
 
 
 def test_each_session_keeps_its_own_persistent_machine(provider):
@@ -95,6 +90,23 @@ def test_each_session_keeps_its_own_persistent_machine(provider):
     finally:
         for name in names:
             Machine.connect(name, LOCAL).delete()
+
+
+def test_only_a_forced_cleanup_deletes_a_persistent_machine(provider):
+    # Otherwise Hermes's one-shot prompt probe leaves a second idle machine running after it exits.
+    task_id = f"forced-{uuid.uuid4().hex[:6]}"
+    env = open_env(provider, task_id, persistent=True)
+    name = env._name
+    try:
+        # Hermes's own teardown, which forwards `force_remove` only when `cleanup`'s signature names it.
+        for unforced in ({}, {"force_remove": False}):
+            _cleanup_env(env, **unforced)
+            assert machine_state(name) == "running"
+            env = open_env(provider, task_id, persistent=True)
+        _cleanup_env(env, force_remove=True)
+        assert machine_state(name) is None
+    finally:
+        Machine.delete_by_name(name, LOCAL)
 
 
 def test_a_shared_machine_outlives_another_process_and_reboots_when_stopped(provider):
