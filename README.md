@@ -12,7 +12,7 @@ you  ->  Hermes (your computer)  ->  this plugin  ->  smol machine (a Linux micr
 ## Requirements
 
 - macOS on Apple Silicon, or Linux on x86_64 or arm64 with glibc 2.34 or newer and access to `/dev/kvm`.
-- Hermes 0.21.6 or newer.
+- Hermes 0.22.6 or newer.
 
 ## Install
 
@@ -40,8 +40,9 @@ hermes config set plugins.entries.smolmachines.settings.image ubuntu:24.04
 
 How the plugin picks a machine:
 
-- `container_persistent: true` (the Hermes default): one machine per Hermes home and session, named `hermes-<session>-<hash>`. Two gateway users, or two profiles, never share one. It keeps running when Hermes is done with it or exits, so a later session or another Hermes process on the same session finds it with your files and processes. If it was stopped, the next command boots it again from its disk and Hermes is told that background processes are gone. A machine found again keeps the image, CPUs and memory it was created with. With the `smolvm` CLI, `smolvm machine ls` lists them, and `smolvm machine stop -n <name>` or `smolvm machine delete -n <name>` frees one.
-- `container_persistent: false`: every session gets its own machine, named `hermes-<session>-<random>`, deleted when the session ends and when Hermes exits.
+- `container_persistent: true` (the Hermes default): one machine per Hermes home and Hermes task id, named `hermes-<task>-<hash>`: `<task>` is the start of the task id and the hash covers the home and the whole id, as in `hermes-session-agent-main-local-0b0f5aee08e2`. Each session has its own task id (work Hermes runs with no session shares `hermes-default-<hash>`), so two gateway users, or two profiles, never share one. It keeps running when Hermes is done with it or exits, so resuming the session, or another Hermes process on it, finds it with your files and processes. If it was stopped, the next command boots it again from its disk and Hermes is told that background processes are gone. A machine found again keeps the image, CPUs and memory it was created with. With the `smolvm` CLI, `smolvm machine ls` lists them, and `smolvm machine stop -n <name>` or `smolvm machine delete -n <name>` frees one.
+- `container_persistent: false`: every session gets its own machine, named `hermes-<task>-<random>`, deleted when the session ends and when Hermes exits.
+- Either way, Hermes boots one more machine, `hermes-prompt-backend-probe-<hash>`, to read the machine's OS for its system prompt, and deletes it when that is done.
 
 Because the machine is a disposable sandbox with no access to your files, Hermes skips its dangerous-command prompts there, as it does for its Docker and cloud backends.
 
